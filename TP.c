@@ -1,12 +1,35 @@
 #include <mpi.h>
 #include <stdio.h>
+#include <cstdlib>
 #include <math.h>
+
+
+/*
+	Matrices como vector:
+	-M[k][n] = M[k*n]
+	-M[fila][columna] = M[fila*(dimension de la fila)+columna]
+*/
+
+/*
+	Llena la matriz recibida por vector con numeros aleatorios en el rango de los
+	enteros recibidos por parámetros.
+	
+	Para el proposito del programa, el valor mínimo es cero siempre.
+	y el máximo para la matriz A es 5 y matriz B es 2.
+*/
+void LlenarMatriz(int* matriz,int dimensionMatriz, int valorMax){
+	int tamañoTotalMatriz = dimensionMatriz*dimensionMatriz;
+	for(int i= 0; i < tamañoTotalMatriz){
+		matriz[i] = (int)rand() % (max+1);
+	}
+}
 
 int main(int argc,char **argv)
 {
     int n = 0, myid, numprocs, i, root = 0, tp;
     double startwtime, endwtime;
     int  namelen;
+	int* A,B,M,C;//Todas las matrices que se van a manejar.
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 	
     MPI_Init(&argc,&argv);
@@ -46,6 +69,10 @@ int main(int argc,char **argv)
 	} else {
 		
 	}
+	/*
+		imprimir todo en batch si la cantidad de procesos es < 100
+		generar un archivo para cada matriz en caso contrario.
+	*/
 
            
     MPI_Finalize();
