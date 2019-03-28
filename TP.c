@@ -24,6 +24,9 @@ int main(int argc,char **argv)
 	
 	if(myid==root){
 		//Crear matriz A y B, con dimensiÃ³n nxn dada por el usuario.
+		//el tamaño de las matrices debe ser multiplo de la cantidad de procesos, siendo k 
+		// la cantidad de procesos, se le da n/k filas a cada proceso
+		//ej. n = 1000, k = 100 => cada proceso maneja 10 filas.
 		//A con valores random entre 0 y 5, B con valores entre 0 y 2.
 	}
     MPI_Barrier(MPI_COMM_WORLD);
