@@ -26,12 +26,55 @@ void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 }
 
 
+/*
+	int tmp = 0;
+	//Arreglos de 2 dimensiones
+	for(int i = 0; i < m; i++){
+		for(int j = 0; j < m; j++){
+			tmp = 0;
+			for(int k = 0; k < m; k++){
+				tmp += x[i][j]+y[j][k];
+				z[i][k] = tmp;
+			}
+		}
+	}
+	
+	//Arreglo 2 dimensiones como representado en 1 dimensión.
+	
+	int tmp = 0;
+	//Arreglos de 2 dimensiones
+	for(int i = 0; i < m; i++){
+		for(int k = 0; k < m; k++){
+			tmp = 0;
+			for(int j = 0; j < m; j++){
+				tmp += x[i*numElem+j]+y[j*numElem+k];
+				z[i*numElem+k] = tmp;
+			}
+		}
+	}
+*/
+/*REVISAR CHOLO, ESTO ES UN DESMADRE.*/
+void MultMatriz(int parteA[], int B[], int desplazamiento/*Proc Id, que es un entero*/, 
+				int numElem, int[] parteM){
+	int carry = 0;//valor acumulado para sumar en M.
+	for(int fila = 0; fila < numElem; fila++){//Me muevo por la columna 
+		for(int columnaRst = desplazamiento; columnaRst < desplazamiento*numElem; columnaRst++){//Me muevo por la columna de la matriz que estoy multiplicando.
+			carry = 0;
+			for(int columnaMult = 0; columnaMult < numElem; columnaMult++){//Me muevo por la columna de multiplicación.
+				tmp += (parteA[fila*numElem+columnaMult])*(B[columnaMult*numElem+columnaRst]);
+				parteM[fila*numElem+columnaRst] = tmp;
+			}
+		}
+	}
+}
+
+
 int main(int argc,char **argv)
 {
     int n = 0, myid, numprocs, i, root = 0, tp;
     double startwtime, endwtime;
-    int  namelen;
 	int *A, *B, *M, *C, *P;//Todas las matrices que se van a manejar.
+	int *localA;
 	//P contiene la cantidad de primos por fila.
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 		//Solicitar n para las dimensiones de las matrices.
@@ -69,7 +112,18 @@ int main(int argc,char **argv)
 		P = (int*)malloc(sizeof(int)*(n));
 		LlenarMatriz(A, n*n, 5);
 		LlenarMatriz(B, n*n, 2);
-	}	
+	} else {//Todos inicializan B, que almacena toda la matriz.
+		B = (int*)malloc(sizeof(int)*(n*n));
+	}
+	
+	
+	MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);//Todos ocupan el valor de n.
+	cantPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
+	localA = (int*)malloc(sizeof(int)*cantPorProc);//se reserva espacio de la cantidad de filas que le toca a cada proc.
+	int localM = (int*)malloc(sizeof(int)*cantPorProc);//Inicializo la parte de M correspondiente a cada proceso.
+	MPI_Scatter(A, cantPorProc, MPI_INT, localA, cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	
+	//MPI_Gather();
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
@@ -99,5 +153,6 @@ int main(int argc,char **argv)
 	free(C);
 	free(M);
 	free(P);
+	free(localA);
     return 0;
 }
