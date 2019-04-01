@@ -1,7 +1,8 @@
 #include <mpi.h>
 #include <stdio.h>
-#include <cstdlib>
+#include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 
 /*
@@ -15,22 +16,32 @@
 	enteros recibidos por parámetros.
 	
 	Para el proposito del programa, el valor mínimo es cero siempre.
-	y el máximo para la matriz A es 5 y matriz B es 2.
 */
-void LlenarMatriz(int* matriz,int dimensionMatriz, int valorMax){
-	int tamañoTotalMatriz = dimensionMatriz*dimensionMatriz;
-	for(int i= 0; i < tamañoTotalMatriz){
-		matriz[i] = (int)rand() % (max+1);
+void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
+	time_t t;
+	srand(time( &t ));
+	for(int i= 0; i < dimensionMatriz; i++){
+		matriz[i] = (int)rand() % (valorMax+1);
 	}
 }
+
 
 int main(int argc,char **argv)
 {
     int n = 0, myid, numprocs, i, root = 0, tp;
     double startwtime, endwtime;
     int  namelen;
-	int* A,B,M,C;//Todas las matrices que se van a manejar.
+	int *A, *B, *M, *C, *P;//Todas las matrices que se van a manejar.
+	//P contiene la cantidad de primos por fila.
     char processor_name[MPI_MAX_PROCESSOR_NAME];
+		//Solicitar n para las dimensiones de las matrices.
+		//Crear matriz A y B, con dimensiÃ³n nxn dada por el usuario.
+		//el tamano de las matrices debe ser multiplo de la cantidad de procesos, siendo k 
+		// la cantidad de procesos, se le da n/k filas a cada proceso
+		//ej. n = 1000, k = 100 => cada proceso maneja 10 filas.
+		//A con valores random entre 0 y 5, B con valores entre 0 y 2.
+		
+		
 	
     MPI_Init(&argc,&argv);
 /*  Se inicia el trabajo con MPI */
@@ -45,14 +56,20 @@ int main(int argc,char **argv)
 /*  MPI almacena en processor_name el nombre de la computadora en la que corre el
     proceso actual, y en namelen la longitud de este */
 	
-	if(myid==root){
-		//Crear matriz A y B, con dimensiÃ³n nxn dada por el usuario.
-		//el tamaño de las matrices debe ser multiplo de la cantidad de procesos, siendo k 
-		// la cantidad de procesos, se le da n/k filas a cada proceso
-		//ej. n = 1000, k = 100 => cada proceso maneja 10 filas.
-		//A con valores random entre 0 y 5, B con valores entre 0 y 2.
-	}
     MPI_Barrier(MPI_COMM_WORLD);
+	
+	if(myid == root){
+		printf("Digite el valor para las dimensiones de las matrices: \n");
+		scanf("%d",&n);
+		printf("\n");
+		A = (int*)malloc(sizeof(int)*(n*n));
+		B = (int*)malloc(sizeof(int)*(n*n));
+		C = (int*)malloc(sizeof(int)*(n*n));
+		M = (int*)malloc(sizeof(int)*(n*n));
+		P = (int*)malloc(sizeof(int)*(n));
+		LlenarMatriz(A, n*n, 5);
+		LlenarMatriz(B, n*n, 2);
+	}	
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
@@ -76,5 +93,11 @@ int main(int argc,char **argv)
 
            
     MPI_Finalize();
+	//Limpiamos memoria
+	free(A);
+	free(B);
+	free(C);
+	free(M);
+	free(P);
     return 0;
 }
