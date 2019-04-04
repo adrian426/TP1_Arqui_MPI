@@ -55,26 +55,41 @@ void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 */
 /*REVISAR CHOLO, ESTO ES UN DESMADRE.*/
 void MultMatriz(int parteA[], int B[], int desplazamiento/*Proc Id, que es un entero*/, 
-				int numElem, int[] parteM){
+				int numElem, int parteM[]){
 	int carry = 0;//valor acumulado para sumar en M.
 	for(int fila = 0; fila < numElem; fila++){//Me muevo por la columna 
-		for(int columnaRst = desplazamiento; columnaRst < desplazamiento*numElem; columnaRst++){//Me muevo por la columna de la matriz que estoy multiplicando.
+		for(int columnaRst = 0; columnaRst < numElem; columnaRst++){//Me muevo por la columna de la matriz que estoy multiplicando.
 			carry = 0;
 			for(int columnaMult = 0; columnaMult < numElem; columnaMult++){//Me muevo por la columna de multiplicación.
-				tmp += (parteA[fila*numElem+columnaMult])*(B[columnaMult*numElem+columnaRst]);
-				parteM[fila*numElem+columnaRst] = tmp;
+				carry += (parteA[fila*numElem+columnaMult])*(B[columnaMult*numElem+(columnaRst+desplazamiento)]);
+				parteM[fila*numElem+(columnaRst+desplazamiento)] = carry;
 			}
 		}
 	}
 }
 
+void imprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* output){
+	int cntRecorrida = 0;
+	for(int index  = 0; index < numElem; index++){
+		fprintf(output, "%d ", arregloAImprimir[index]);
+		cntRecorrida++;
+		if(cntRecorrida == cntFilas){
+			cntRecorrida = 0;
+			fprintf(output,"\n");
+		}
+	}
+	fprintf(output,"\n");	
+}
+
 
 int main(int argc,char **argv)
 {
-    int n = 0, myid, numprocs, i, root = 0, tp;
+    int n = 0, myid, numprocs, i, root = 0, tp, cantPorProc;
     double startwtime, endwtime;
 	int *A, *B, *M, *C, *P;//Todas las matrices que se van a manejar.
-	int *localA;
+	int *localA, *localM;
+	int namelen;
+	FILE* output = stdout;
 	//P contiene la cantidad de primos por fila.
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 		//Solicitar n para las dimensiones de las matrices.
@@ -108,22 +123,33 @@ int main(int argc,char **argv)
 		A = (int*)malloc(sizeof(int)*(n*n));
 		B = (int*)malloc(sizeof(int)*(n*n));
 		C = (int*)malloc(sizeof(int)*(n*n));
-		M = (int*)malloc(sizeof(int)*(n*n));
+		M = (int*)calloc(sizeof(int),(n*n));
 		P = (int*)malloc(sizeof(int)*(n));
 		LlenarMatriz(A, n*n, 5);
 		LlenarMatriz(B, n*n, 2);
+		imprimirArreglo(A, n*n, n, output);
+		imprimirArreglo(B, n*n, n, output);
 	} else {//Todos inicializan B, que almacena toda la matriz.
-		B = (int*)malloc(sizeof(int)*(n*n));
+		B = (int*)malloc(sizeof(int)*(n*n));	
 	}
 	
 	
 	MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);//Todos ocupan el valor de n.
+	MPI_Bcast(B,n*n, MPI_INT, root, MPI_COMM_WORLD);
 	cantPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
-	localA = (int*)malloc(sizeof(int)*cantPorProc);//se reserva espacio de la cantidad de filas que le toca a cada proc.
-	int localM = (int*)malloc(sizeof(int)*cantPorProc);//Inicializo la parte de M correspondiente a cada proceso.
-	MPI_Scatter(A, cantPorProc, MPI_INT, localA, cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	localA = (int*)calloc(n*cantPorProc,sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
+	localM = (int*)calloc(n*cantPorProc,sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
+	MPI_Scatter(A, n*cantPorProc, MPI_INT, localA, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	MultMatriz(localA, B, myid, n*cantPorProc/*#elem de cada fila * cantidad de filas*/, localM);
+	if(myid == root)printf("holi5\n");
 	
-	//MPI_Gather();
+    MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Gather(localM, n*cantPorProc, MPI_INT, M, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	if(myid == root)printf("holi6\n");
+	    MPI_Barrier(MPI_COMM_WORLD);
+	//if(myid == root)imprimirArreglo(M, n*n, n, output);	
+	if(myid == root)printf("holi7\n");
+    MPI_Barrier(MPI_COMM_WORLD);
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
@@ -136,7 +162,10 @@ int main(int argc,char **argv)
 	*/
 
 	if (myid == root){
-        
+        free(A);
+		free(M);
+		free(C);
+		free(P);
 	} else {
 		
 	}
@@ -146,13 +175,10 @@ int main(int argc,char **argv)
 	*/
 
            
-    MPI_Finalize();
 	//Limpiamos memoria
-	free(A);
 	free(B);
-	free(C);
-	free(M);
-	free(P);
 	free(localA);
+	free(localM);
+    MPI_Finalize();
     return 0;
 }
