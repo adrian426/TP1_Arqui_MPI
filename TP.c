@@ -1,4 +1,4 @@
-#include <mpi.h>
+#include "mpi.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -13,9 +13,9 @@
 
 /*
 	Llena la matriz recibida por vector con numeros aleatorios en el rango de los
-	enteros recibidos por parámetros.
+	enteros recibidos por parï¿½metros.
 	
-	Para el proposito del programa, el valor mínimo es cero siempre.
+	Para el proposito del programa, el valor mï¿½nimo es cero siempre.
 */
 void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 	time_t t;
@@ -39,7 +39,7 @@ void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 		}
 	}
 	
-	//Arreglo 2 dimensiones como representado en 1 dimensión.
+	//Arreglo 2 dimensiones como representado en 1 dimensiï¿½n.
 	
 	int tmp = 0;
 	//Arreglos de 2 dimensiones
@@ -53,16 +53,18 @@ void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 		}
 	}
 */
-/*REVISAR CHOLO, ESTO ES UN DESMADRE.*/
 void MultMatriz(int parteA[], int B[], int desplazamiento/*Proc Id, que es un entero*/, 
 				int numElem, int parteM[]){
 	int carry = 0;//valor acumulado para sumar en M.
-	for(int fila = 0; fila < numElem; fila++){//Me muevo por la columna 
-		for(int columnaRst = 0; columnaRst < numElem; columnaRst++){//Me muevo por la columna de la matriz que estoy multiplicando.
-			carry = 0;
-			for(int columnaMult = 0; columnaMult < numElem; columnaMult++){//Me muevo por la columna de multiplicación.
-				carry += (parteA[fila*numElem+columnaMult])*(B[columnaMult*numElem+(columnaRst+desplazamiento)]);
-				parteM[fila*numElem+(columnaRst+desplazamiento)] = carry;
+	for(int i = 0; i < numElem; i++){//Me muevo por la columna
+		for(int j = 0; j < numElem; j++){
+			parteM[(i*numElem)+j] = 0;
+			for(int k = 0; k < numElem; k++){
+				int posM = (i*numElem)+j;
+				int posA =	(i*numElem)+k;
+				int posB = (j*numElem)+(desplazamiento+k);
+				//printf("ID: %d\nPosA: %d\nPosB: %d\nPosM: %d\n",desplazamiento,posA, posB,posM);
+				parteM[posM] += parteA[posA]*B[posB];
 			}
 		}
 	}
@@ -84,7 +86,7 @@ void imprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* ou
 
 int main(int argc,char **argv)
 {
-    int n = 0, myid, numprocs, i, root = 0, tp, cantPorProc;
+    int n , myid, numprocs, i, root = 0, tp, cantPorProc;
     double startwtime, endwtime;
 	int *A, *B, *M, *C, *P;//Todas las matrices que se van a manejar.
 	int *localA, *localM;
@@ -117,39 +119,33 @@ int main(int argc,char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
 	
 	if(myid == root){
-		printf("Digite el valor para las dimensiones de las matrices: \n");
+		printf("Digite el valor para las dimensiones de las matrices: ");
 		scanf("%d",&n);
 		printf("\n");
 		A = (int*)malloc(sizeof(int)*(n*n));
 		B = (int*)malloc(sizeof(int)*(n*n));
-		C = (int*)malloc(sizeof(int)*(n*n));
+		//C = (int*)malloc(sizeof(int)*(n*n));
 		M = (int*)calloc(sizeof(int),(n*n));
-		P = (int*)malloc(sizeof(int)*(n));
+		//P = (int*)malloc(sizeof(int)*(n));
 		LlenarMatriz(A, n*n, 5);
 		LlenarMatriz(B, n*n, 2);
 		imprimirArreglo(A, n*n, n, output);
 		imprimirArreglo(B, n*n, n, output);
-	} else {//Todos inicializan B, que almacena toda la matriz.
-		B = (int*)malloc(sizeof(int)*(n*n));	
 	}
-	
-	
-	MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);//Todos ocupan el valor de n.
+
+	MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);
+	if(myid != root)
+		B = (int*)malloc(sizeof(int)*(n*n));
 	MPI_Bcast(B,n*n, MPI_INT, root, MPI_COMM_WORLD);
 	cantPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
-	localA = (int*)calloc(n*cantPorProc,sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
-	localM = (int*)calloc(n*cantPorProc,sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
+	localA = (int*)malloc(n*cantPorProc*sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
+	localM = (int*)malloc(n*cantPorProc*sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
 	MPI_Scatter(A, n*cantPorProc, MPI_INT, localA, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	MultMatriz(localA, B, myid, n*cantPorProc/*#elem de cada fila * cantidad de filas*/, localM);
-	if(myid == root)printf("holi5\n");
 	
-    MPI_Barrier(MPI_COMM_WORLD);
-	//MPI_Gather(localM, n*cantPorProc, MPI_INT, M, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
-	if(myid == root)printf("holi6\n");
-	    MPI_Barrier(MPI_COMM_WORLD);
-	//if(myid == root)imprimirArreglo(M, n*n, n, output);	
-	if(myid == root)printf("holi7\n");
-    MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Gather(localM, n*cantPorProc, MPI_INT, M, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	if(myid == root)imprimirArreglo(M, n*n, n, output);
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
@@ -164,8 +160,8 @@ int main(int argc,char **argv)
 	if (myid == root){
         free(A);
 		free(M);
-		free(C);
-		free(P);
+		//free(C);
+		//free(P);
 	} else {
 		
 	}
@@ -173,8 +169,6 @@ int main(int argc,char **argv)
 		imprimir todo en batch si la cantidad de procesos es < 100
 		generar un archivo para cada matriz en caso contrario.
 	*/
-
-           
 	//Limpiamos memoria
 	free(B);
 	free(localA);
