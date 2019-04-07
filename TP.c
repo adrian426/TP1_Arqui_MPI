@@ -54,16 +54,17 @@ void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 	}
 */
 void MultMatriz(int parteA[], int B[], int desplazamiento/*Proc Id, que es un entero*/, 
-				int numElem, int parteM[]){
-	int carry = 0;//valor acumulado para sumar en M.
-	for(int i = 0; i < numElem; i++){//Me muevo por la columna
-		for(int j = 0; j < numElem; j++){
-			parteM[(i*numElem)+j] = 0;
+				int numElem, int numFilas, int parteM[]){
+	int posM = 0;
+	int posA = 0;
+	int posB = 0;
+	for(int i = 0; i < numFilas; i++){//Me muevo por la fila de M
+		for(int j = 0, colM = 0; j < numElem; j++,colM++){ //Me muevo por la columna de M con n y B con j;
+			posM = (i*numElem)+j;
+			parteM[posM] = 0;
 			for(int k = 0; k < numElem; k++){
-				int posM = (i*numElem)+j;
-				int posA =	(i*numElem)+k;
-				int posB = (j*numElem)+(desplazamiento+k);
-				//printf("ID: %d\nPosA: %d\nPosB: %d\nPosM: %d\n",desplazamiento,posA, posB,posM);
+				posA = (i*numElem)+k;
+				posB = (k*numElem)+j;
 				parteM[posM] += parteA[posA]*B[posB];
 			}
 		}
@@ -86,7 +87,7 @@ void imprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* ou
 
 int main(int argc,char **argv)
 {
-    int n , myid, numprocs, i, root = 0, tp, cantPorProc;
+    int n , myid, numprocs, i, root = 0, tp, cantFilasPorProc;
     double startwtime, endwtime;
 	int *A, *B, *M, *C, *P;//Todas las matrices que se van a manejar.
 	int *localA, *localM;
@@ -137,13 +138,14 @@ int main(int argc,char **argv)
 	if(myid != root)
 		B = (int*)malloc(sizeof(int)*(n*n));
 	MPI_Bcast(B,n*n, MPI_INT, root, MPI_COMM_WORLD);
-	cantPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
-	localA = (int*)malloc(n*cantPorProc*sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
-	localM = (int*)malloc(n*cantPorProc*sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
-	MPI_Scatter(A, n*cantPorProc, MPI_INT, localA, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
-	MultMatriz(localA, B, myid, n*cantPorProc/*#elem de cada fila * cantidad de filas*/, localM);
+	cantFilasPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
+	localA = (int*)malloc(n*cantFilasPorProc*sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
+	localM = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
+	MPI_Scatter(A, n*cantFilasPorProc, MPI_INT, localA, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	
-	MPI_Gather(localM, n*cantPorProc, MPI_INT, M, n*cantPorProc, MPI_INT, root, MPI_COMM_WORLD);
+	MultMatriz(localA, B, myid, n*cantFilasPorProc/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM);
+	
+	MPI_Gather(localM, n*cantFilasPorProc, MPI_INT, M, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if(myid == root)imprimirArreglo(M, n*n, n, output);
 
