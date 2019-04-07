@@ -71,7 +71,7 @@ void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* ou
 	fprintf(output,"\n");	
 }
 
-void CalcularC(){
+void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[]){
 
 }
 
@@ -140,6 +140,7 @@ int main(int argc,char **argv)
 	int* parteSuperior = (int*)calloc(n,sizeof(int));
 	int* parteInferior = (int*)calloc(n,sizeof(int));
 	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));
+	int* localP = (int*)calloc(n,sizeof(int));
 
 	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Direccion en el arreglo donde empieza la ultima fila.
 	/*
@@ -150,18 +151,16 @@ int main(int argc,char **argv)
 	*/
 	if(myid != root) MPI_Send(localM, n, MPI_INT, myid - 1, 1, MPI_COMM_WORLD);//Envio primer fila si no soy cero.
 	if(myid != numprocs-1) MPI_Send(localM+desplazamientoParteSuperior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD);//Envio ultima fila si no soy el ultimo
-	if(myid != root) MPI_Recv(parteSuperior, n, MPI_INT, myid-1, 1, MPI_COMM_WORLD, &estado);
-	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD, &estado);
+	if(myid != root) MPI_Recv(parteSuperior, n, MPI_INT, myid-1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de arriba si no soy root.
+	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
 
+	//Aqui se hechan todas las impresiones.
 	if(myid == root){
 		printf("\n");
 		ImprimirArreglo(M, n*n, n, output);
 		printf("Total de primos: %d\n", tp);
-	}
-	
-    MPI_Barrier(MPI_COMM_WORLD);
-	if(myid == 2)ImprimirArreglo(parteSuperior,n,n,output);
+	}	
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
@@ -176,10 +175,8 @@ int main(int argc,char **argv)
 	if (myid == root){
         free(A);
 		free(M);
-		//free(C);
-		//free(P);
-	} else {
-		
+		free(C);
+		free(P);
 	}
 	/*
 		imprimir todo en batch si la cantidad de procesos es < 100
@@ -189,6 +186,9 @@ int main(int argc,char **argv)
 	free(B);
 	free(localA);
 	free(localM);
+	free(parteSuperior);
+	free(parteInferior);
+	free(localP);
     MPI_Finalize();
     return 0;
 }
