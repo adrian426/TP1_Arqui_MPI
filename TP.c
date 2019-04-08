@@ -76,7 +76,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 	- Crear matriz C tal que:
 		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
 */
-void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
+void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
 	int indexC = 0, indexCol;
 	for(int i = 0; i < cntFilas; i++){
@@ -200,7 +200,7 @@ int main(int argc,char **argv)
 	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
 	//Calculamos matriz C.
-	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, n, cantFilasPorProc, numprocs);
+	CalcularC(parteSuperior, parteInferior, localC, localM, myid, n, cantFilasPorProc, numprocs);
 
 	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 
