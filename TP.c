@@ -51,7 +51,7 @@ void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* ou
 /*
 	Hace la multiplicacion de matrices y va contando cuantos primos tiene M.
 */
-int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
+int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], int localP[]){
 	int posM = 0, posA = 0, posB = 0, carry = 0, cntPrimos = 0; //valores
 	for(int i = 0; i < numFilas; i++){//Me muevo por la fila de M
 		for(int j = 0; j < numElem; j++){ //Me muevo por la columna de M con n y B con j;
@@ -64,6 +64,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
 			}
 			if(PruebaDePrimalidad(carry)){ 
 				cntPrimos++;
+				localP[j]++;
 			};
 			parteM[posM] = carry;
 		}
@@ -77,7 +78,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
 		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
 			(Considerar filas y columnas extremas de la matriz.)
 */
-void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[], int numElem, int cntFilas, int cntProcs){
+void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
 	int indexC = 0, indexCol;
 	for(int i = 0; i < cntFilas; i++){
@@ -112,10 +113,6 @@ void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int par
 
 			if(indexCol != 0){//C[i][j] += M[i][j-1]. No se calcula cuando j es el extremo izquierdo.
 				parteC[indexC] += parteM[(i*numElem) + (j-1)];
-			}
-
-			if(PruebaDePrimalidad(parteC[indexC])){//Aumenta el contador de primos en la columna j si el valor de C es primo.
-				localP[j]++;
 			}
 			indexCol++;
 		}
@@ -173,12 +170,13 @@ int main(int argc,char **argv)
 	cantFilasPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
 	localA = (int*)calloc(n*cantFilasPorProc,sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
 	localM = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
+	int* localP = (int*)calloc(n,sizeof(int));
 
 	//Envio a cada hilo la cantidad de elementos de A que le corresponden.
 	MPI_Scatter(A, n*cantFilasPorProc, MPI_INT, localA, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	
 	//Calculamos la multiplicacion local de la matriz y cuantos primos tiene la misma de forma local.
-	int localTP = MultMatriz(localA, B, n/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM);
+	int localTP = MultMatriz(localA, B, n/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM, localP);
 
 	//Armamos la matriz M a partir de los resultados locales de los procesos.
 	MPI_Gather(localM, n*cantFilasPorProc, MPI_INT, M, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
@@ -190,7 +188,6 @@ int main(int argc,char **argv)
 	int* parteSuperior = (int*)calloc(n,sizeof(int));
 	int* parteInferior = (int*)calloc(n,sizeof(int));
 	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));
-	int* localP = (int*)calloc(n,sizeof(int));
 	
 	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Direccion en el arreglo donde empieza la ultima fila.
 	/*
@@ -205,7 +202,7 @@ int main(int argc,char **argv)
 	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
 	//Calculamos matriz C y P.
-	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, localP, n, cantFilasPorProc, numprocs);
+	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, n, cantFilasPorProc, numprocs);
 
 	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 
