@@ -77,7 +77,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
 		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
 			(Considerar filas y columnas extremas de la matriz.)
 */
-void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[],int numElem, int cntFilas, int cntProcs){
+void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[], int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
 	int indexC = 0, indexCol;
 	for(int i = 0; i < cntFilas; i++){
@@ -150,14 +150,13 @@ int main(int argc,char **argv)
 			printf("El valor ingresado no es multiplo de %d, por favor, vuelva a ingresar otro: ", numprocs);
 			scanf("%d",&n);
 			printf("\n");
-		} 
-
+		}
 		//Reservamos memoria para todos los arreglos globales.
-		A = (int*)malloc(sizeof(int)*(n*n));
-		B = (int*)malloc(sizeof(int)*(n*n));
-		C = (int*)malloc(sizeof(int)*(n*n));
+		A = (int*)calloc(sizeof(int),(n*n));
+		B = (int*)calloc(sizeof(int),(n*n));
+		C = (int*)calloc(sizeof(int),(n*n));
 		M = (int*)calloc(sizeof(int),(n*n));
-		P = (int*)malloc(sizeof(int)*(n));
+		P = (int*)calloc(sizeof(int),(n));
 
 		//Se llenan las matrices
 		LlenarMatriz(A, n*n, 5);
@@ -171,19 +170,19 @@ int main(int argc,char **argv)
 	//Se envia el valor de n a todos los procesos.
 	MPI_Bcast(&n, 1, MPI_INT, root, MPI_COMM_WORLD);
 	if(myid != root)
-		B = (int*)malloc(sizeof(int)*(n*n));
+		B = (int*)calloc(sizeof(int),(n*n));
 
 	//Envio la matriz B a todos los procesos.
 	MPI_Bcast(B,n*n, MPI_INT, root, MPI_COMM_WORLD);
 	cantFilasPorProc = n/numprocs;//Cuantas filas recibe cada proceso.
-	localA = (int*)malloc(n*cantFilasPorProc*sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
+	localA = (int*)calloc(n*cantFilasPorProc,sizeof(int));//se reserva espacio de la cantidad de filas que le toca a cada proc.
 	localM = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Inicializo la parte de M correspondiente a cada proceso.
 
 	//Envio a cada hilo la cantidad de elementos de A que le corresponden.
 	MPI_Scatter(A, n*cantFilasPorProc, MPI_INT, localA, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	
 	//Calculamos la multiplicacion local de la matriz y cuantos primos tiene la misma de forma local.
-	int localTP = MultMatriz(localA, B, n*cantFilasPorProc/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM);
+	int localTP = MultMatriz(localA, B, n/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM);
 
 	//Armamos la matriz M a partir de los resultados locales de los procesos.
 	MPI_Gather(localM, n*cantFilasPorProc, MPI_INT, M, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
@@ -210,7 +209,7 @@ int main(int argc,char **argv)
 	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
 	//Calculamos matriz C y P.
-	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, localP, n*cantFilasPorProc, cantFilasPorProc, numprocs);
+	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, localP, n, cantFilasPorProc, numprocs);
 
 	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 
