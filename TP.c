@@ -33,6 +33,22 @@ bool PruebaDePrimalidad(int valorAEvaluar){
 }
 
 /*
+	Imprime el arreglo recibido por parametro.
+*/
+void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* output){
+	int cntRecorrida = 0;
+	for(int index  = 0; index < numElem; index++){
+		fprintf(output, "%d ", arregloAImprimir[index]);
+		cntRecorrida++;
+		if(cntRecorrida == cntFilas){
+			cntRecorrida = 0;
+			fprintf(output,"\n");
+		}
+	}
+	fprintf(output,"\n");	
+}
+
+/*
 	Hace la multiplicacion de matrices y va contando cuantos primos tiene M.
 */
 int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
@@ -56,23 +72,55 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[]){
 }
 
 /*
-	Imprime el arreglo recibido por parametro.
+	- Vector P tal que P[i] = a la cantidad de primos en la columna i de M.
+	- Crear matriz C tal que:
+		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
+			(Considerar filas y columnas extremas de la matriz.)
 */
-void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* output){
-	int cntRecorrida = 0;
-	for(int index  = 0; index < numElem; index++){
-		fprintf(output, "%d ", arregloAImprimir[index]);
-		cntRecorrida++;
-		if(cntRecorrida == cntFilas){
-			cntRecorrida = 0;
-			fprintf(output,"\n");
+void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[],int numElem, int cntFilas, int cntProcs){
+	bool usarParteSuperior = true, usarParteInferior = false;
+	int indexC = 0, indexCol;
+	for(int i = 0; i < cntFilas; i++){
+		indexCol = 0;
+		if(i == cntFilas -1) usarParteInferior = true;//Determina cuando se debe usar la parte inferior.
+		for(int j = 0; j < numElem; j++){
+
+			indexC = (i*numElem) + j;//Indice de C que esta siendo calculado.
+
+			parteC[indexC] += parteM[(i*numElem) + j];//C[i][j] += M[i][j].
+			
+			if(myId != cntProcs - 1){//C[i][j] += M[i+1][j]. Para todos menos para el hilo que maneja el ultimo pedazo de M.
+				if(!usarParteInferior){
+					parteC[indexC] += parteM[((i+1)*numElem) + j];
+				} else {
+					parteC[indexC] += parteInferior[indexCol];
+				}
+			}
+
+			if(myId != 0){//C[i][j] += M[i-1][j]. Para todos menos para el hilo root.
+				if(!usarParteSuperior){
+					parteC[indexC] += parteM[((i-1)*numElem + j)];
+				} else {
+					parteC[indexC] += parteSuperior[indexCol];
+				}
+			}
+
+
+			if( indexCol == 0 || indexCol != cntFilas-1){//C[i][j] += M[i][j+1]. No se calcula cuando j es el extremo derecho.
+				parteC[indexC] += parteM[(i*numElem)+(j+1)];
+			}
+
+			if(indexCol != 0){//C[i][j] += M[i][j-1]. No se calcula cuando j es el extremo izquierdo.
+				parteC[indexC] += parteM[(i*numElem) + (j-1)];
+			}
+
+			if(PruebaDePrimalidad(parteC[indexC])){//Aumenta el contador de primos en la columna j si el valor de C es primo.
+				localP[j]++;
+			}
+			indexCol++;
 		}
+		usarParteSuperior = false;//ya se uso la parte superior
 	}
-	fprintf(output,"\n");	
-}
-
-void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int localP[]){
-
 }
 
 
@@ -95,9 +143,14 @@ int main(int argc,char **argv)
 	MPI_Status estado;
 	//Se solicita al usuario que ingrese la cantidad de filas y columnas que van a tener las matrices.
 	if(myid == root){
-		printf("Digite el valor para las dimensiones de las matrices: ");
+		printf("Digite el valor para las dimensiones de las matrices, debe ser multiplo de %d: ", numprocs);
 		scanf("%d",&n);
 		printf("\n");
+		while(n%numprocs != 0){
+			printf("El valor ingresado no es multiplo de %d, por favor, vuelva a ingresar otro: ", numprocs);
+			scanf("%d",&n);
+			printf("\n");
+		} 
 
 		//Reservamos memoria para todos los arreglos globales.
 		A = (int*)malloc(sizeof(int)*(n*n));
@@ -109,7 +162,9 @@ int main(int argc,char **argv)
 		//Se llenan las matrices
 		LlenarMatriz(A, n*n, 5);
 		LlenarMatriz(B, n*n, 2);
+		printf("A: \n");
 		ImprimirArreglo(A, n*n, n, output);
+		printf("B: \n");
 		ImprimirArreglo(B, n*n, n, output);
 	}
 
@@ -141,7 +196,7 @@ int main(int argc,char **argv)
 	int* parteInferior = (int*)calloc(n,sizeof(int));
 	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));
 	int* localP = (int*)calloc(n,sizeof(int));
-
+	
 	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Direccion en el arreglo donde empieza la ultima fila.
 	/*
 	n -> n+1 -> ultima fila
@@ -149,27 +204,33 @@ int main(int argc,char **argv)
 	n <- n+1 -> primer fila
 	n <- n-1 -> ultima fila
 	*/
-	if(myid != root) MPI_Send(localM, n, MPI_INT, myid - 1, 1, MPI_COMM_WORLD);//Envio primer fila si no soy cero.
+	if(myid != root) MPI_Send(localM, n, MPI_INT, myid - 1, 2, MPI_COMM_WORLD);//Envio primer fila si no soy cero.
 	if(myid != numprocs-1) MPI_Send(localM+desplazamientoParteSuperior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD);//Envio ultima fila si no soy el ultimo
 	if(myid != root) MPI_Recv(parteSuperior, n, MPI_INT, myid-1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de arriba si no soy root.
-	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
+	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
+	//Calculamos matriz C y P.
+	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, localP, n*cantFilasPorProc, cantFilasPorProc, numprocs);
 
+	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
+
+	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 	//Aqui se hechan todas las impresiones.
 	if(myid == root){
 		printf("\n");
+		printf("M: \n");
 		ImprimirArreglo(M, n*n, n, output);
-		printf("Total de primos: %d\n", tp);
+		printf("Total de primos en M: %d\n\n", tp);
+		printf("C: \n");
+		ImprimirArreglo(C, n*n, n, output);
+		printf("P: \n");
+		ImprimirArreglo(P, n, n, output);
 	}	
 
 	/*
 		Calcular de forma distribuida entre todos los procesos:
 			- Matriz M = AxB. DONE
 			- tp = Numero total de valores primos en M DONE
-			- Vector P tal que P[i] = a la cantidad de primos en la columna i de M.
-			- Crear matriz C tal que:
-				C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
-					(Considerar filas y columnas extremas de la matriz.)
 	*/
 
 	if (myid == root){
@@ -189,6 +250,7 @@ int main(int argc,char **argv)
 	free(parteSuperior);
 	free(parteInferior);
 	free(localP);
+	free(localC);
     MPI_Finalize();
     return 0;
 }
