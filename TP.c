@@ -35,8 +35,9 @@ bool PruebaDePrimalidad(int valorAEvaluar){
 /*
 	Imprime el arreglo recibido por parametro.
 */
-void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* output){
+void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* output, char* arrayTag){
 	int cntRecorrida = 0;
+	fprintf(output, "%s:\n", arrayTag);
 	for(int index  = 0; index < numElem; index++){
 		fprintf(output, "%d ", arregloAImprimir[index]);
 		cntRecorrida++;
@@ -206,18 +207,12 @@ int main(int argc,char **argv)
 	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 	//Aqui se hechan todas las impresiones.
 	if(myid == root){
-		printf("A: \n");
-		ImprimirArreglo(A, n*n, n, output);
-		printf("B: \n");
-		ImprimirArreglo(B, n*n, n, output);
-		printf("\n");
-		printf("M: \n");
-		ImprimirArreglo(M, n*n, n, output);
+		ImprimirArreglo(A, n*n, n, output,(char*)"A");
+		ImprimirArreglo(B, n*n, n, output, (char*)"B");
+		ImprimirArreglo(M, n*n, n, output, (char*)"M");
+		ImprimirArreglo(P, n, n, output, (char*)"P");
 		printf("Total de primos en M: %d\n\n", tp);
-		printf("C: \n");
-		ImprimirArreglo(C, n*n, n, output);
-		printf("P: \n");
-		ImprimirArreglo(P, n, n, output);
+		ImprimirArreglo(C, n*n, n, output, (char*)"C");
 	}
 
 	if (myid == root){
