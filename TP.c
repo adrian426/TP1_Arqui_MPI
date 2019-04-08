@@ -53,36 +53,33 @@ void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, FILE* ou
 */
 int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], int localP[]){
 	int posM = 0, posA = 0, posB = 0, carry = 0, cntPrimos = 0; //valores
-	for(int i = 0; i < numFilas; i++){//Me muevo por la fila de M
-		for(int j = 0; j < numElem; j++){ //Me muevo por la columna de M con n y B con j;
-			posM = (i*numElem)+j;
-			carry = 0;
+	for(int i = 0; i < numFilas; i++){
+		for(int j = 0; j < numElem; j++){
+			posM = (i*numElem)+j;//Calculo posision en M
+			parteM[posM] = 0;
 			for(int k = 0; k < numElem; k++){
-				posA = (i*numElem)+k;
-				posB = (k*numElem)+j;
-				carry += parteA[posA]*B[posB];
+				posA = (i*numElem)+k;//Calculo posicion en A
+				posB = (k*numElem)+j;//Calculo posicion en B
+				parteM[posM] += parteA[posA]*B[posB];
 			}
-			if(PruebaDePrimalidad(carry)){ 
+			if(PruebaDePrimalidad(parteM[posM])){ 
 				cntPrimos++;
 				localP[j]++;
 			};
-			parteM[posM] = carry;
 		}
 	}
 	return cntPrimos;
 }
 
 /*
-	- Vector P tal que P[i] = a la cantidad de primos en la columna i de M.
 	- Crear matriz C tal que:
 		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
-			(Considerar filas y columnas extremas de la matriz.)
 */
 void CalcularCyP(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
 	int indexC = 0, indexCol;
 	for(int i = 0; i < cntFilas; i++){
-		indexCol = 0;
+		indexCol = 0;//Contador para no usar mod.
 		if(i == cntFilas -1) usarParteInferior = true;//Determina cuando se debe usar la parte inferior.
 		for(int j = 0; j < numElem; j++){
 
@@ -175,7 +172,7 @@ int main(int argc,char **argv)
 	//Envio a cada hilo la cantidad de elementos de A que le corresponden.
 	MPI_Scatter(A, n*cantFilasPorProc, MPI_INT, localA, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
 	
-	//Calculamos la multiplicacion local de la matriz y cuantos primos tiene la misma de forma local.
+	//Calculamos la multiplicacion local de la matriz, arreglo P y cuantos primos tiene la misma de forma local.
 	int localTP = MultMatriz(localA, B, n/*#elem de cada fila * cantidad de filas*/, cantFilasPorProc, localM, localP);
 
 	//Armamos la matriz M a partir de los resultados locales de los procesos.
@@ -201,7 +198,7 @@ int main(int argc,char **argv)
 	if(myid != root) MPI_Recv(parteSuperior, n, MPI_INT, myid-1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de arriba si no soy root.
 	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
 	
-	//Calculamos matriz C y P.
+	//Calculamos matriz C.
 	CalcularCyP(parteSuperior, parteInferior, localC, localM, myid, n, cantFilasPorProc, numprocs);
 
 	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
