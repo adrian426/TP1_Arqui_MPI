@@ -161,10 +161,6 @@ int main(int argc,char **argv)
 		//Se llenan las matrices
 		LlenarMatriz(A, n*n, 5);
 		LlenarMatriz(B, n*n, 2);
-		printf("A: \n");
-		ImprimirArreglo(A, n*n, n, output);
-		printf("B: \n");
-		ImprimirArreglo(B, n*n, n, output);
 	}
 
 	//Se envia el valor de n a todos los procesos.
@@ -216,6 +212,10 @@ int main(int argc,char **argv)
 	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 	//Aqui se hechan todas las impresiones.
 	if(myid == root){
+		printf("A: \n");
+		ImprimirArreglo(A, n*n, n, output);
+		printf("B: \n");
+		ImprimirArreglo(B, n*n, n, output);
 		printf("\n");
 		printf("M: \n");
 		ImprimirArreglo(M, n*n, n, output);
@@ -224,13 +224,7 @@ int main(int argc,char **argv)
 		ImprimirArreglo(C, n*n, n, output);
 		printf("P: \n");
 		ImprimirArreglo(P, n, n, output);
-	}	
-
-	/*
-		Calcular de forma distribuida entre todos los procesos:
-			- Matriz M = AxB. DONE
-			- tp = Numero total de valores primos en M DONE
-	*/
+	}
 
 	if (myid == root){
         free(A);
