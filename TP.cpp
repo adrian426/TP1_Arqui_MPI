@@ -268,7 +268,7 @@ int main(int argc,char **argv)
 		printf("Tiempo que el programa duro realizando los calculos: %lf s\n", tiempoFinCalculos - tiempoIniCalculos);
 		printf("\n");
 		//Libero memoria de las matrices que solo existen en el proc raiz.
-        free(A);
+        	free(A);
 		free(M);
 		free(C);
 		free(P);
@@ -283,6 +283,6 @@ int main(int argc,char **argv)
 	free(parteInferior);
 	free(localP);
 	free(localC);
-    MPI_Finalize();
+    	MPI_Finalize();
     return 0;
 }
