@@ -264,8 +264,8 @@ int main(int argc,char **argv)
 		printf("Cantidad de Procesos: %d\n",numprocs);
 		printf("Total de primos en M: %d\n", tp);
 		tiempoFin = MPI_Wtime();
-		printf("Tiempo total que el programa tardo ejecutandose: %lf\n", tiempoFin - tiempoInicio);
-		printf("Tiempo que el programa duro realizando los calculos: %lf\n", tiempoFinCalculos - tiempoIniCalculos);
+		printf("Tiempo total que el programa tardo ejecutandose: %lf s\n", tiempoFin - tiempoInicio);
+		printf("Tiempo que el programa duro realizando los calculos: %lf s\n", tiempoFinCalculos - tiempoIniCalculos);
 		printf("\n");
 		//Libero memoria de las matrices que solo existen en el proc raiz.
         free(A);
