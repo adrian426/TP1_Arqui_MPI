@@ -107,41 +107,45 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 */
 void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
-	int indexC = 0, indexCol;
+	int indexC, indexCol = 0;
+	if(myId == 0){
+		ImprimirArreglo(parteSuperior, numElem/cntFilas, cntFilas, "asd",cout);
+	}
 	for(int i = 0; i < cntFilas; i++){
-		indexCol = 0;//Contador para no usar mod.
 		if(i == cntFilas -1) usarParteInferior = true;//Determina cuando se debe usar la parte inferior.
 		for(int j = 0; j < numElem; j++){
-
+			indexCol = j%numElem;
 			indexC = (i*numElem) + j;//Indice de C que esta siendo calculado.
 
 			parteC[indexC] += parteM[(i*numElem) + j];//C[i][j] += M[i][j].
-			
-			if(myId != cntProcs - 1){//C[i][j] += M[i+1][j]. Para todos menos para el hilo que maneja el ultimo pedazo de M.
-				if(!usarParteInferior){//Si no es la ultima fila del proceso, utiliza M para hacer el calculo.
-					parteC[indexC] += parteM[((i+1)*numElem) + j];
-				} else {//Usa parteInferior[] para hacer el calculo porque es la ultima fila.
+		
+			//C[i][j] += M[i+1][j]. 
+			if(usarParteInferior){//Si se requiere usar el arreglo con la fila faltante de abajo.
+				if( myId != cntProcs - 1 ){//El ultimo proceso no ocupa hacer este calculo.
 					parteC[indexC] += parteInferior[indexCol];
 				}
+			} else {//No estamos en la ultima fila de localM del proceso, por lo que no se ocupa el arreglo con la parte faltante.
+				parteC[indexC] += parteM[((i+1)*numElem) + j];
 			}
 
-			if(myId != 0){//C[i][j] += M[i-1][j]. Para todos menos para el hilo root.
-				if(!usarParteSuperior){//Si no es la primer fila del proceso utiliza M para hacer el calculo.
-					parteC[indexC] += parteM[((i-1)*numElem + j)];
-				} else {//Si es la primer fila usa parteSuperior[] para calcular.
+			//C[i][j] += M[i-1][j].
+			if(usarParteSuperior){//Si se requiere usar el arreglo que tiene la parte superior faltante en el proc.
+				if(myId != 0){//El proc raiz no utiliza esta fila.
 					parteC[indexC] += parteSuperior[indexCol];
 				}
+			} else {//Ya no se ocupa hacer la fila con la parte faltante, todos los procs participan.
+				parteC[indexC] += parteM[((i-1)*numElem + j)];
 			}
 
 
-			if( indexCol == 0 || indexCol != cntFilas-1){//C[i][j] += M[i][j+1]. No se calcula cuando j es el extremo derecho.
+			
+			if(indexCol != numElem-1){//C[i][j] += M[i][j+1]. No se calcula cuando j es el extremo derecho.
 				parteC[indexC] += parteM[(i*numElem)+(j+1)];
 			}
 
 			if(indexCol != 0){//C[i][j] += M[i][j-1]. No se calcula cuando j es el extremo izquierdo.
 				parteC[indexC] += parteM[(i*numElem) + (j-1)];
 			}
-			indexCol++;
 		}
 		usarParteSuperior = false;//ya se uso la parte superior
 	}
