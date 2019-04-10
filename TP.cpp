@@ -11,14 +11,13 @@ using namespace std;
 /**
  *	Tarea programada hecha por Adrian Jose Alvarez Rodriguez 
  *  Carnet: B40340
- * 
+ * 	Arquitectura de computadoras II semestre 2019.
  */
 
 
 
 /*
-	Llena la matriz recibida por vector con numeros aleatorios en el rango de los
-	enteros recibidos por par�metros.
+	Llena la matriz recibida por vector con numeros aleatorios cuyo valor maximo es el recibido por parametro.
 	
 	Para el proposito del programa, el valor m�nimo es cero siempre.
 */
@@ -39,32 +38,14 @@ bool PruebaDePrimalidad(int valorAEvaluar){
 	for(int valorAProbar = 2; valorAProbar < valSQRT && rst; valorAProbar++){
 		if(valorAEvaluar%valorAProbar == 0) rst = false;
 	}
-	if(valSQRT <=1) rst = false;
+	if(valSQRT <= 1) rst = false;
 	return rst;
 }
 
 /*
-	Imprime el arreglo recibido por parametro en consola.
+	Imprime el arreglo en el archuvo (puede ser consola o un archivo.)
 */
-void ImprimirArregloConsola(int arregloAImprimir[], int numElem, int cntFilas, char* arrayTag){
-	int cntRecorrida = 0;
-	printf("%s:\n", arrayTag);
-	for(int index  = 0; index < numElem; index++){
-		printf("%d ", arregloAImprimir[index]);
-		cntRecorrida++;
-		if(cntRecorrida == cntFilas){
-			cntRecorrida = 0;
-			printf("\n");
-		}
-	}
-	printf("\n");	
-}
-
-/*
-	Imprime el arreglo recibido por parametro en un archivo con el nombre recibido en el parametro nombreArchivo.
-*/
-void ImprimirArregloArchivo(int arregloAImprimir[], int numElem, int cntFilas, string nombreArchivo){
-	ofstream archivo (nombreArchivo + ".txt");
+void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, string nombreArchivo, ostream &archivo){
 	archivo << "Matriz ";
 	archivo << nombreArchivo;
 	archivo << "\n";
@@ -82,27 +63,15 @@ void ImprimirArregloArchivo(int arregloAImprimir[], int numElem, int cntFilas, s
 }
 
 /*
-	Imprime en el archivo el arreglo P.
+	Imprime en el archivo (puede ser consola o un archivo.) el arreglo P.
 */
-void ImprimirArregloConPrimosEnArchivo(int arregloAImprimir[], int numElem, string nombreArchivo){
-	ofstream archivo (nombreArchivo + ".txt");
-	archivo << nombreArchivo;
-	archivo << "\n";
+void ImprimirArregloConPrimos(int arregloAImprimir[], int numElem, ostream &archivo){
 	for(int index = 0; index < numElem; index++){
 		archivo << "P[";
 		archivo << index;
 		archivo<< "] = ";
 		archivo << arregloAImprimir[index];
 		archivo << " \n";
-	}
-}
-
-/*
-	Imprime en el archivo el arreglo P.
-*/
-void ImprimirArregloConPrimosEnAConsola(int arregloAImprimir[], int numElem){
-	for(int index = 0; index < numElem; index++){
-		printf("P[%d] = %d\n",index, arregloAImprimir[index]);
 	}
 }
 
@@ -120,7 +89,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 				posB = (k*numElem)+j;//Calculo posicion en B
 				parteM[posM] += parteA[posA]*B[posB];
 			}
-			if(PruebaDePrimalidad(parteM[posM])){ 
+			if(PruebaDePrimalidad(parteM[posM])){ // Si el valor calculado de M es primo, aumenta los contadores correspondientes.
 				cntPrimos++;
 				localP[j]++;
 			};
@@ -130,7 +99,7 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 }
 
 /*
-	- Crear matriz C tal que:
+	- Calcular matriz C tal que:
 		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
 */
 void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
@@ -241,66 +210,73 @@ int main(int argc,char **argv)
 	//Hacemos la recoleccion de los resultados de cada proceso con la cantidad de numeros primos.
 	MPI_Reduce(&localTP,&tp,1,MPI_INT,MPI_SUM,root,MPI_COMM_WORLD);
 
-	//Todos los hilos ya tienen su parte correspondiente de M, les falta la fila arriba y la fila abajo para poder hacer el calculo de C.
+	//Se recogen y suman los resultados de cada proceso de la cuenta de primos en cada columna para saber el total.
+	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
+
+	//Todos los hilos ya tienen su parte correspondiente de M, les falta la fila arriba y la fila abajo para poder hacer el calculo de C
+	// en todas sus entradas..
 	int* parteSuperior = (int*)calloc(n,sizeof(int));
 	int* parteInferior = (int*)calloc(n,sizeof(int));
-	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));
+
+	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Cada proceso ocupa almacenar la parte de C que van a calcular.
 	
-	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Direccion en el arreglo donde empieza la ultima fila.
+	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Offset del arreglo local donde empieza la ultima fila.
+	
 	/*
-	n -> n+1 -> ultima fila
-	n -> n-1 -> primer fila
-	n <- n+1 -> primer fila
-	n <- n-1 -> ultima fila
+		Reparto a todos los procesos la parte de M que les falta para calcular C, es decir, si soy el proceso n,
+		al proceso n+1 le doy mi ultima fila y al proceso n-1 le doy mi primer fila.
 	*/
-	if(myid != root) MPI_Send(localM, n, MPI_INT, myid - 1, 2, MPI_COMM_WORLD);//Envio primer fila si no soy cero.
-	if(myid != numprocs-1) MPI_Send(localM+desplazamientoParteSuperior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD);//Envio ultima fila si no soy el ultimo
+	if(myid != root) MPI_Send(localM, n, MPI_INT, myid - 1, 2, MPI_COMM_WORLD);//Envio primer fila si no soy root.
+	if(myid != numprocs-1) MPI_Send(localM+desplazamientoParteSuperior, n, MPI_INT, myid+1, 1, MPI_COMM_WORLD);//Envio ultima fila si no soy el proceso.
 	if(myid != root) MPI_Recv(parteSuperior, n, MPI_INT, myid-1, 1, MPI_COMM_WORLD, &estado);//Recibo la fila de arriba si no soy root.
-	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy root.
+	if(myid != numprocs - 1) MPI_Recv(parteInferior, n, MPI_INT, myid+1, 2, MPI_COMM_WORLD, &estado);//Recibo la fila de abajo si no soy el ultimo proceso.
 	
 	//Calculamos matriz C.
 	CalcularC(parteSuperior, parteInferior, localC, localM, myid, n, cantFilasPorProc, numprocs);
 
+	//Se recogen los resultados de cada proceso para armar la matriz C en el proceso raiz.
 	MPI_Gather(localC, n*cantFilasPorProc, MPI_INT, C, n*cantFilasPorProc, MPI_INT, root, MPI_COMM_WORLD);
-
-	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 
 	tiempoFinCalculos = MPI_Wtime();
 	//Aqui se hechan todas las impresiones.
 	if(myid == root){
-		if(n <= 30 ){
-			ImprimirArregloConsola(A, n*n, n, (char*)"A");
-			ImprimirArregloConsola(B, n*n, n, (char*)"B");
-			ImprimirArregloConsola(M, n*n, n, (char*)"M");
-			ImprimirArregloConsola(C, n*n, n, (char*)"C");
-			ImprimirArregloConPrimosEnAConsola(P, n);
-		} else {
-			ImprimirArregloArchivo(A, n*n, n, "A");
-			ImprimirArregloArchivo(B, n*n, n, "B");
-			ImprimirArregloArchivo(M, n*n, n, "M");
-			ImprimirArregloArchivo(C, n*n, n, "C");
-			ImprimirArregloConPrimosEnArchivo(P,n,"P");
+		if(n <= 30 ){//Imprimo en consola
+			ImprimirArreglo(A, n*n, n, "A", cout);
+			ImprimirArreglo(B, n*n, n, "B", cout);
+			ImprimirArreglo(M, n*n, n, "M", cout);
+			ImprimirArreglo(C, n*n, n, "C", cout);
+			ImprimirArregloConPrimos(P, n, cout);
+		} else {//Imprimo cada matriz en el archivo correspondiente.
+			ofstream archivoA ("A.txt");
+			ImprimirArreglo(A, n*n, n, "A", archivoA);
+			ofstream archivoB ("B.txt");
+			ImprimirArreglo(B, n*n, n, "B", archivoB);
+			ofstream archivoM ("M.txt");
+			ImprimirArreglo(M, n*n, n, "M", archivoM);
+			ofstream archivoC ("C.txt");
+			ImprimirArreglo(C, n*n, n, "C", archivoC);
+			ofstream archivoP ("P.txt");
+			ImprimirArregloConPrimos(P, n, archivoP);
 		}
+
+		//Se imprimen los valores generales de los calculos y duracion de los mismos.
+		printf("\n");
 		printf("Valor de n: %d\n",n);
 		printf("Cantidad de Procesos: %d\n",numprocs);
-		printf("Total de primos en M: %d\n\n", tp);
+		printf("Total de primos en M: %d\n", tp);
 		tiempoFin = MPI_Wtime();
 		printf("Tiempo total que el programa tardo ejecutandose: %lf\n", tiempoFin - tiempoInicio);
 		printf("Tiempo que el programa duro realizando los calculos: %lf\n", tiempoFinCalculos - tiempoIniCalculos);
-
-	}
-
-	if (myid == root){
+		printf("\n");
+		//Libero memoria de las matrices que solo existen en el proc raiz.
         free(A);
 		free(M);
 		free(C);
 		free(P);
+
 	}
-	/*
-		imprimir todo en batch si la cantidad de procesos es < 100
-		generar un archivo para cada matriz en caso contrario.
-	*/
-	//Limpiamos memoria
+
+	//Limpiamos memoria local de cada proceso.
 	free(B);
 	free(localA);
 	free(localM);
