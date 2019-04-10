@@ -18,8 +18,6 @@ using namespace std;
 
 /*
 	Llena la matriz recibida por vector con numeros aleatorios cuyo valor maximo es el recibido por parametro.
-	
-	Para el proposito del programa, el valor m�nimo es cero siempre.
 */
 void LlenarMatriz(int matriz[],int dimensionMatriz, int valorMax){
 	time_t t;
@@ -63,7 +61,7 @@ void ImprimirArreglo(int arregloAImprimir[], int numElem, int cntFilas, string n
 }
 
 /*
-	Imprime en el archivo (puede ser consola o un archivo.) el arreglo P.
+	Imprime en el archivo (puede ser consola o un archivo) el arreglo P.
 */
 void ImprimirArregloConPrimos(int arregloAImprimir[], int numElem, ostream &archivo){
 	for(int index = 0; index < numElem; index++){
@@ -77,6 +75,7 @@ void ImprimirArregloConPrimos(int arregloAImprimir[], int numElem, ostream &arch
 
 /*
 	Hace la multiplicacion de matrices y va contando cuantos primos tiene M.
+	Retorna la cantidad de primos que fueron calculados para el proceso correspondiente.
 */
 int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], int localP[]){
 	int posM = 0, posA = 0, posB = 0, carry = 0, cntPrimos = 0; //valores
@@ -115,17 +114,17 @@ void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parte
 			parteC[indexC] += parteM[(i*numElem) + j];//C[i][j] += M[i][j].
 			
 			if(myId != cntProcs - 1){//C[i][j] += M[i+1][j]. Para todos menos para el hilo que maneja el ultimo pedazo de M.
-				if(!usarParteInferior){
+				if(!usarParteInferior){//Si no es la ultima fila del proceso, utiliza M para hacer el calculo.
 					parteC[indexC] += parteM[((i+1)*numElem) + j];
-				} else {
+				} else {//Usa parteInferior[] para hacer el calculo porque es la ultima fila.
 					parteC[indexC] += parteInferior[indexCol];
 				}
 			}
 
 			if(myId != 0){//C[i][j] += M[i-1][j]. Para todos menos para el hilo root.
-				if(!usarParteSuperior){
+				if(!usarParteSuperior){//Si no es la primer fila del proceso utiliza M para hacer el calculo.
 					parteC[indexC] += parteM[((i-1)*numElem + j)];
-				} else {
+				} else {//Si es la primer fila usa parteSuperior[] para calcular.
 					parteC[indexC] += parteSuperior[indexCol];
 				}
 			}
@@ -214,13 +213,13 @@ int main(int argc,char **argv)
 	MPI_Reduce(localP, P, n, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 
 	//Todos los hilos ya tienen su parte correspondiente de M, les falta la fila arriba y la fila abajo para poder hacer el calculo de C
-	// en todas sus entradas..
+	// en todas sus entradas.
 	int* parteSuperior = (int*)calloc(n,sizeof(int));
 	int* parteInferior = (int*)calloc(n,sizeof(int));
 
-	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Cada proceso ocupa almacenar la parte de C que van a calcular.
+	int* localC = (int*)calloc(n*cantFilasPorProc,sizeof(int));//Cada proceso ocupa almacenar la parte de C que va a calcular.
 	
-	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Offset del arreglo local donde empieza la ultima fila.
+	int desplazamientoParteSuperior = (n*cantFilasPorProc)-n;//Offset del arreglo local de M donde empieza la ultima fila.
 	
 	/*
 		Reparto a todos los procesos la parte de M que les falta para calcular C, es decir, si soy el proceso n,
