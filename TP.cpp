@@ -74,7 +74,7 @@ void ImprimirArregloConPrimos(int arregloAImprimir[], int numElem, ostream &arch
 }
 
 /*
-	Hace la multiplicacion de matrices y va contando cuantos primos tiene M.
+	Hace la multiplicacion de matrices y va contando cuantos primos tiene M en cada columna.
 	Retorna la cantidad de primos que fueron calculados para el proceso correspondiente.
 */
 int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], int localP[]){
@@ -99,7 +99,11 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 
 /*
 	- Calcular matriz C tal que:
-		C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
+		- C[i,j] = M[i,j] + M[i+1,j] + M[i-1,j] + M[i,j+1] + M[i,j-1]
+		-parteSuperior[] y parteInferior[] son los arreglos que le faltan al proceso para poder realizar los calculos en
+		C[i][j+-1].
+		-parteC[] y parteM[] son los arreglos locales para realizar los calculos.
+		-myId es el identificador del proceso actual que va a realizar los calculos para saber si debe usar los arreglos superior e inferior.
 */
 void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
@@ -268,11 +272,10 @@ int main(int argc,char **argv)
 		printf("Tiempo que el programa duro realizando los calculos: %lf s\n", tiempoFinCalculos - tiempoIniCalculos);
 		printf("\n");
 		//Libero memoria de las matrices que solo existen en el proc raiz.
-        	free(A);
+		free(A);
 		free(M);
 		free(C);
 		free(P);
-
 	}
 
 	//Limpiamos memoria local de cada proceso.
@@ -283,6 +286,6 @@ int main(int argc,char **argv)
 	free(parteInferior);
 	free(localP);
 	free(localC);
-    	MPI_Finalize();
+	MPI_Finalize();
     return 0;
 }
