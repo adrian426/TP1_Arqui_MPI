@@ -10,7 +10,7 @@ using namespace std;
 
 /**
  *	Tarea programada hecha por Adrian Jose Alvarez Rodriguez 
- *  Carnet: B40340
+ *  	Carnet: B40340
  * 	Arquitectura de computadoras II semestre 2019.
  */
 
@@ -108,9 +108,6 @@ int MultMatriz(int parteA[], int B[], int numElem, int numFilas, int parteM[], i
 void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parteM[], int myId, int numElem, int cntFilas, int cntProcs){
 	bool usarParteSuperior = true, usarParteInferior = false;
 	int indexC, indexCol = 0;
-	if(myId == 0){
-		ImprimirArreglo(parteSuperior, numElem/cntFilas, cntFilas, "asd",cout);
-	}
 	for(int i = 0; i < cntFilas; i++){
 		if(i == cntFilas -1) usarParteInferior = true;//Determina cuando se debe usar la parte inferior.
 		for(int j = 0; j < numElem; j++){
