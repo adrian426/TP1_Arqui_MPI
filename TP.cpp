@@ -114,7 +114,8 @@ void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parte
 	for(int i = 0; i < cntFilas; i++){
 		if(i == cntFilas -1) usarParteInferior = true;//Determina cuando se debe usar la parte inferior.
 		for(int j = 0; j < numElem; j++){
-			indexCol = j%numElem;
+			indexCol = j%numElem;//Calculo el valor de la columna real actual.
+
 			indexC = (i*numElem) + j;//Indice de C que esta siendo calculado.
 
 			parteC[indexC] += parteM[(i*numElem) + j];//C[i][j] += M[i][j].
@@ -147,7 +148,7 @@ void CalcularC(int parteSuperior[], int parteInferior[], int parteC[], int parte
 				parteC[indexC] += parteM[(i*numElem) + (j-1)];
 			}
 		}
-		usarParteSuperior = false;//ya se uso la parte superior
+		usarParteSuperior = false;//ya se uso la parte superior, por lo que se descarta su uso.
 	}
 }
 
